@@ -1,0 +1,4 @@
+#!/bin/bash
+
+javac startNode.java
+javac Node.java

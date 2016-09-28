@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gcc -o node src/three_phase_commit.c
