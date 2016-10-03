@@ -127,6 +127,7 @@ class Client:
     def receive(self, s):
         print "client: received internal something"
         with self.lock:
+            print "client: receive inside lock"
             m = Message(json.loads(s))
             print "Inside receive - " + str(m)
             # Only pay attention to abort if in middle of transaction.

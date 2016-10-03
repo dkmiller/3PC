@@ -167,10 +167,9 @@ def main():
 ##    handler.start()
 
   client = Client(pid, num_processes, send_many)
+  print "Client has been inited"
   client.load_state()
   mhandler.start()
-
-  print "Client has been inited"
 
   while True:
     a = 1
