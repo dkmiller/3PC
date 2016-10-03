@@ -203,7 +203,10 @@ class Client:
     class Message(object):
         # Call on json.dumps(client, default=jdefault)
         def __init__(self, data):
-            self.__dict__ = data
+            try:
+                self.__dict__ = data
+            except:
+                print 'problem happened, data =  ' + str(data)
 
 # Only used for debugging. TODO: delete before submission.
 def test_send(pids, string):
