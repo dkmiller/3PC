@@ -1,3 +1,4 @@
+import client
 import sys, os
 import time
 from socket import SOCK_STREAM, socket, AF_INET
@@ -18,10 +19,12 @@ class ListenThread(Thread):
 
   # From Daniel
   def run(self):
+    global client
     while True:
       try:
         data = self.conn.recv(1024):
-        do_on_receive(data)
+        for line in data:
+          client.receive(line)
 
       except:
         break
@@ -67,12 +70,14 @@ class MasterHandler(Thread):
     self.valid = True
 
   def run(self):
-    global threads, conns
+    global client, conns, threads
     conns[-1] = self.conn
     while self.valid:
       try:
         data = self.conn.recv(1024)
         print data
+        for line in data:
+          client.receive_master(line)
         #sys.stderr.write(data)
 #         line = data.split('\n')
 #         for l in line:
@@ -142,7 +147,7 @@ def main():
   # All incoming connections
   handler = WorkerThread(pid, address, root_port+pid)
   handler.start()
-  
+
   # All outgoing connections
 ##  for pno in range(num_processes):
 ##    if pno == pid:
@@ -150,6 +155,8 @@ def main():
 ##    handler = ClientHandler(pno, address, root_port+pno)
 ##    outgoing_conns[pno] = handler
 ##    handler.start()
+
+  global client = Client(pid, num_processes, send)
 
   while True:
     a = 1
