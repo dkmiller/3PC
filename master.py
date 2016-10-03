@@ -126,7 +126,7 @@ def main():
                 leader = pid
             leader_lock.release()
             live_list[pid] = True
-            #subprocess.Popen(['./process', str(pid), sp2[2], sp2[3]], stdout=open('/dev/null'), stderr=open('/dev/null'))
+            subprocess.Popen(['./process', str(pid), sp2[2], sp2[3]], stdout=open('/dev/null'), stderr=open('/dev/null'))
             # sleep for a while to allow the process be ready
             time.sleep(0.5)
             # connect to the port of the pid

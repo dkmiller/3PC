@@ -5,6 +5,7 @@ missing module named _warnings.filters - imported by _warnings, warnings
 missing module named _warnings.once_registry - imported by _warnings, warnings
 missing module named _warnings.default_action - imported by _warnings, warnings
 missing module named _warnings.warn - imported by _warnings, warnings
+missing module named warnings.warn - imported by warnings, random, contextlib
 missing module named strop.whitespace - imported by strop, string
 missing module named strop.maketrans - imported by strop, string
 missing module named strop.lowercase - imported by strop, string
@@ -30,6 +31,9 @@ missing module named _weakref.ProxyType - imported by _weakref, weakref
 missing module named copy.deepcopy - imported by copy, weakref
 missing module named re._compile - imported by re, sre
 missing module named re.__all__ - imported by re, sre
+missing module named re.escape - imported by re, _strptime
+missing module named re.IGNORECASE - imported by re, _strptime
+missing module named re.compile - imported by re, _strptime
 missing module named codecs.mbcs_encode - imported by codecs, encodings.mbcs
 missing module named codecs.mbcs_decode - imported by codecs, encodings.mbcs
 missing module named binascii.b2a_qp - imported by binascii, quopri
@@ -163,3 +167,7 @@ missing module named nt._getfullpathname - imported by nt, ntpath
 missing module named nt._exit - imported by nt, os
 missing module named nt - imported by os, ntpath
 missing module named posix._exit - imported by posix, os
+missing module named _json.make_encoder - imported by _json, json.encoder
+missing module named _json.encode_basestring_ascii - imported by _json, json.encoder
+missing module named _json.scanstring - imported by _json, json.decoder
+missing module named _json.make_scanner - imported by _json, json.scanner

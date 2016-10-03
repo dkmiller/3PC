@@ -1,9 +1,10 @@
-import client
+from client import Client
 import sys, os
 import time
 from socket import SOCK_STREAM, socket, AF_INET
 from threading import Thread, Lock
 
+client = 1
 root_port = 20000
 address = 'localhost'
 processes = dict()
@@ -12,8 +13,8 @@ conns = dict()
 outgoing_conns = dict()
 
 class ListenThread(Thread):
-  def __init__(self):
-    Thread.__init__(self, conn, addr)
+  def __init__(self, conn, addr):
+    Thread.__init__(self)
     self.conn = conn
     self.addr = addr
 
@@ -22,7 +23,7 @@ class ListenThread(Thread):
     global client
     while True:
       try:
-        data = self.conn.recv(1024):
+        data = self.conn.recv(1024)
         data = data.split('\n')
         for line in data:
           client.receive(line)
@@ -109,7 +110,7 @@ class MasterHandler(Thread):
 
   def send(self, s):
     if self.valid:
-      self.sock.send(str(s) + '\n')
+      self.conn.send(str(s) + '\n')
 
   def close(self):
     try:
@@ -119,10 +120,10 @@ class MasterHandler(Thread):
       pass
 
 def send(p_id, data):
-  global root_port
+  global root_port, outgoing_conns
   if p_id == -1:
     outgoing_conns[p_id].send(str(data) + '\n')
-    return true
+    return True
 
   try:
     sock = socket(AF_INET, SOCK_STREAM)
@@ -130,8 +131,8 @@ def send(p_id, data):
     sock.send(str(data) + '\n')
     sock.close()
   except:
-    return false
-  return true
+    return False
+  return True
 
 def main():
   global address, root_port, processes, outgoing_conns
@@ -147,7 +148,7 @@ def main():
   handler.start()
 
   # All incoming connections
-  handler = WorkerThread(pid, address, root_port+pid)
+  handler = WorkerThread(address, root_port+pid, pid)
   handler.start()
 
   # All outgoing connections
@@ -158,7 +159,7 @@ def main():
 ##    outgoing_conns[pno] = handler
 ##    handler.start()
 
-  global client = Client(pid, num_processes, send)
+  client = Client(pid, num_processes, send)
 
   while True:
     a = 1

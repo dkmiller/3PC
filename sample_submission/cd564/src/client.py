@@ -43,7 +43,8 @@ class Client:
         # TODO: open log file here.
 
         # Find out who is alive and who is the coordinator.
-        self.broadcast('just-woke')
+        ##self.broadcast('just-woke')
+        self.broadcast()
         # Self is the only live process.
         if len(self.alive) == 1:
             self.coordinator = self.id
@@ -74,7 +75,7 @@ class Client:
         pid = int(parts[0])
         # Begin three-phase commit.
         if parts[1] == 'add' and self.coordinator == pid:
-            self.action = 'add':
+            self.action = 'add'
             self.song = parts[2]
             self.state = 'vote-req'
             # Start a new transaction.
@@ -133,14 +134,14 @@ class Client:
             self.URL = m.URL
             self.send(self.coordinator, self.message())
         # Only accept no votes if you're the coordinator.
-        if m.state == 'vote-no' and self.id = self.coordinator:
+        if m.state == 'vote-no' and self.id == self.coordinator:
             self.state = 'abort'
             self.votes[m.id] = False
             self.broadcast()
             # Tell master you've aborted.
             self.send(-1, 'ack abort')
         # Only accept yes votes if you're the coordinator
-        if m.state == 'vote-yes' and self.id = self.coordinator:
+        if m.state == 'vote-yes' and self.id == self.coordinator:
             self.votes[m.id] = True
             # Everybody vote yes!
             if any(self.votes.values()):
