@@ -8,6 +8,7 @@ address = 'localhost'
 processes = dict()
 threads = dict()
 conns = dict()
+outgoing_conns = dict()
 
 class ListenThread(Thread):
   def __init__(self):
@@ -18,8 +19,12 @@ class ListenThread(Thread):
   # From Daniel
   def run(self):
     while True:
-      data = self.conn.recv(1024):
-      do_on_receive(data)
+      try:
+        data = self.conn.recv(1024):
+        do_on_receive(data)
+
+      except:
+        break
 
 class WorkerThread(Thread):
   def __init__(self, address, internal_port, pid):
@@ -107,10 +112,18 @@ class MasterHandler(Thread):
       pass
 
 def send(p_id, data):
-  outgoing_conns[p_id].send(str(data) + '\n')
+  global root_port
+  if p_id == -1:
+    outgoing_conns[p_id].send(str(data) + '\n')
+    return
+
+  sock = socket(AF_INET, SOCK_STREAM)
+  sock.connect((address, root_port + p_id))
+  sock.send(str(data) + '\n')
+  sock.close()
 
 def main():
-  global address, root_port, processes
+  global address, root_port, processes, outgoing_conns
 
   print sys.argv
   pid = int(sys.argv[1])
@@ -126,19 +139,16 @@ def main():
   handler = WorkerThread(pid, address, root_port+pid)
   handler.start()
   
-  for pno in range(num_processes):
-    if pno == pid:
-      continue
-    handler = ClientHandler(pno, address, root_port+pno)
-    outgoing_conns[pno] = handler
-    handler.start()
+  # All outgoing connections
+##  for pno in range(num_processes):
+##    if pno == pid:
+##      continue
+##    handler = ClientHandler(pno, address, root_port+pno)
+##    outgoing_conns[pno] = handler
+##    handler.start()
 
   while True:
     a = 1
-  ####processes[idval] = sock
-  #f = open('backend_servers', 'r')
-  # check if it is a recovered process
-  #f.close()
 
   # append process information to file for all processes info
   f = open('backend_servers', 'a')
@@ -146,15 +156,15 @@ def main():
   f.close()
 
   # get information of all other processes
-  ## TODO: loop this
-  f = open('backend_servers', 'r')
-  for line in f:
-    #line = line.split()
-    print line
-    idval = int(line)
-    sock = socket(AF_INET, SOCK_STREAM)
-    sock.connect((address, idval+root_port))
-    processes[idval] = sock
+  curr_processes = 0
+  while curr_processes != num_processes:
+    curr_processes = 0
+    f = open('backend_servers', 'r')
+    for line in f:
+      #line = line.split()
+      print line
+      curr_processes += 1
+    f.close()
 
   while (True):
     try:
