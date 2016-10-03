@@ -72,28 +72,28 @@ class Client:
     # Called when self receives a message s from the master.
     def receive_master(self, s):
         parts = s.split()
-        pid = int(parts[0])
+        ##pid = int(parts[0])
         # Begin three-phase commit.
-        if parts[1] == 'add' and self.coordinator == pid:
+        if parts[0] == 'add' and self.coordinator == self.id:
             self.action = 'add'
-            self.song = parts[2]
+            self.song = parts[1]
             self.state = 'vote-req'
             # Start a new transaction.
             self.transaction += 1
-            self.URL = parts[3]
+            self.URL = parts[2]
             self.votes = {}
             self.broadcast()
-        if parts[1] == 'delete' and self.coordinator == pid:
+        if parts[0] == 'delete' and self.coordinator == self.id:
             self.action = 'delete'
-            self.song = parts[2]
+            self.song = parts[1]
             self.state = 'vote-req'
             self.transaction += 1
             self.votes = {}
             self.broadcast()
-        if parts[1] == 'get':
-            if parts[2] in self.data:
+        if parts[0] == 'get':
+            if parts[1] in self.data:
                 # Send song URL to master.
-                self.send(-1, self.data[parts[2]])
+                self.send(-1, self.data[parts[1]])
 
     # Called when self receives message s from another backend server.
     def receive(self, s):
