@@ -23,6 +23,7 @@ class ListenThread(Thread):
     while True:
       try:
         data = self.conn.recv(1024):
+        data = data.split('\n')
         for line in data:
           client.receive(line)
 
@@ -75,7 +76,8 @@ class MasterHandler(Thread):
     while self.valid:
       try:
         data = self.conn.recv(1024)
-        print data
+        #print data
+        data = data.split('\n')
         for line in data:
           client.receive_master(line)
         #sys.stderr.write(data)
