@@ -20,8 +20,9 @@ class Client:
         # Single global lock.
         self.lock = threading.Lock()
         # Message to send. Possible values are:
-        # abort, ack, commit, just-woke, vote-no, vote-req, vote-yes
-        self.message = 'just-woke'
+        # abort, ack, commit, just-woke, state-resp, state-req, ur-elected,
+        # vote-no, vote-req, vote-yes
+        self.message = 'state-req'
         # Total number of processes (not including master).
         self.N = num_procs
         # Send functionL
@@ -36,8 +37,13 @@ class Client:
         # Find out current state (has self crashed, etc).
         with open('%dlog.p' % self.id, 'w+') as log:
             try:
-                # TODO: check for incomplete transaction / state here.
-                state = pickle.load(log)
+                transaction = pickle.load(log)['state']
+                # Previous transaction finished.
+                if transaction['state'] in ['committed', 'aborted']:
+                    self.broadcast()
+                else:
+                    # TODO: termination protocol.
+                    pass
             # First time this process has started.
             except:
                 # Find out who is alive and who is the coordinator.
@@ -134,14 +140,24 @@ class Client:
                     self.data[m.song] = m.URL
                 elif m.transaction['action'] == 'delete':
                     del self.data[m.song]
-            if m.message == 'just-woke':
-                # TODO: make sure this works, get data from the sender.
-                self.send(m.id, self.message())
             if m.message == 'pre-commit':
                 self.message = 'ack'
                 self.transaction['state'] = 'precommitted'
                 self.send([self.coordinator], self.message_str())
                 # TODO: what if coordinator is dead here?
+            if m.message == 'state-req':
+                self.message = 'state-resp'
+                self.send([m.id], self.message())
+            if m.message == 'state-resp':
+                # Self tried to learn state, didn't crash during a transaction.
+                if self.transaction['state'] in ['commited', 'aborted']:
+                    # Only update internal state if sender knows more than self.
+                    if self.transaction['number'] < m.transaction['number']:
+                        self.data = m.data
+                        self.transaction = m.transaction
+                # Self crashed during a transaction.
+                else:
+                    # TODO: recovery code here.
             if m.message == 'ur-elected':
                 # TODO: termination protocol
                 pass
@@ -152,7 +168,7 @@ class Client:
                 self.send([m.id], self.message_str())
                 # TODO: timeout actions.
             # Only accept no votes if you're the coordinator.
-            if m.state == 'vote-no' and self.id == self.coordinator:
+            if m.message == 'vote-no' and self.id == self.coordinator:
                 self.message = 'abort'
                 self.transaction['state'] = 'aborted'
                 self.votes[m.id] = False
@@ -160,7 +176,7 @@ class Client:
                 # Tell master you've aborted.
                 self.send(-1, 'ack abort')
             # Only accept yes votes if you're the coordinator
-            if m.state == 'vote-yes' and self.id == self.coordinator:
+            if m.message == 'vote-yes' and self.id == self.coordinator:
                 self.votes[m.id] = True
                 # Everybody has voted yes!
                 if any(self.votes.values()):
