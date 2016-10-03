@@ -34,6 +34,8 @@ class Client:
                             'type': None,
                             'URL' : None}
 
+    # Should be called immediately after constructor.
+    def load_state(self):
         # Find out current state (has self crashed, etc).
         with open('%dlog.p' % self.id, 'w+') as log:
             try:
@@ -46,6 +48,7 @@ class Client:
                     pass
             # First time this process has started.
             except:
+                print 'Process %d alive for the first time' % self.id
                 # Find out who is alive and who is the coordinator.
                 self.alive = self.broadcast()
                 # Self is the first process to be started.
