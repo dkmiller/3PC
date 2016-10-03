@@ -99,7 +99,8 @@ class Client:
         m = Message(json.loads(s))
         if m.state == 'abort':
             self.state = 'abort'
-        if m.state == 'ack':
+        # Only pay attention to acks if you are the coordinator.
+        if m.state == 'ack' and self.id == self.coordinator:
             self.acks[m.id] = True
             # All live processes have acked.
             if len(self.acks) == len(self.alive):
