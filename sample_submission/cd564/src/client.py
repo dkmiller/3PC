@@ -1,117 +1,148 @@
 import json
 
+
+def jdefault(o):
+    return o.__dict__
+
+# Wrapper class for the receipt of a json'd client.
+class Message(object):
+    # Call on json.dumps(client, default=jdefault)
+    def __init__(self, data):
+        self.__dict__ = data
+
+def test_send(pid, string):
+    print pid, string
+    return True
+
 class Client:
-    def message(self, p, type, **kwargs):
-        msg = {
-            'sender' : self.id,
-            # Current transaction number.
-            'current_transaction' : self.transaction,
-            # Process the sender believes is the coordinator.
-            'coordinator' : self.coordinator,
-            'message_type' : type,
-            # Processes the sender believes are alive.
-            'alive_list' : self.alive,
-            'recipient' : p
-        }
-        for key in enumerate(kwargs):
-            msg[key] = kwargs[key]
-        return json.puts(msg)
-    # Broadcasts message of given type and internally updates alive list. The
-    # broadcast goes to all messages, including the sender.
-    def broadcast(self, type, **kwargs):
+    def __init__(self, pid, num_procs, send):
+        # Action that the current transaction will perform, e.g. 'get'.
+        self.action = None
+        # Set of processes that we think are alive.
+        self.alive = {pid : True}
+        # Unknown coordinator.
+        self.coordinator = None
+        # Internal hash table of URL : song_name.
+        self.data = {}
+        # Process id.
+        self.id = pid
+        # Total number of processes (not including master).
+        self.N = num_procs
+        # Send functionL
+        self.send = send
+        # Song title (to be added or deleted)
+        self.song = None
+        # Current state.
+        self.state = 'just-woke'
+        # Current transaction number.
+        self.transaction = 0
+        # Message recipient.
+        self.to = None
+        self.URL = None
+
+        # TODO: open log file here.
+
+        # Find out who is alive and who is the coordinator.
+        self.broadcast('just-woke')
+        # Self is the only live process.
+        if len(self.alive) == 1:
+            self.coordinator = self.id
+            # Tell master this process is now coordinator.
+            self.send(-1, 'coordinator %d' % self.id)
+
+    # Returns a serialized version of self's state.
+    def message(self):
+        return json.dumps(self, default = jdefault)
+
+    # Broadcasts message corresponding to state and internally updates alive
+    # list. The broadcast goes to all messages, including the sender.
+    def broadcast(self):
         for p in xrange(self.N):
-            send_string = self.message(p, type, **kwargs)
+            self.to = p
+            send_string = self.message()
             # Process p received broadcast.
             if self.send(p, send_string):
                 self.alive[p] = True
             # Process p didn't receive broadcast.
             elif p in self.alive:
                 del self.alive[p]
+            self.to = None
 
-    def __init__(self, pid, num_procs, send):
-        # Total number of processes (not including master).
-        self.N = num_procs
-        # Process id.
-        self.id = pid
-        # Internal hash table of URL : song_name.
-        self.data = {}
-        # Process is coordinator.
-        self.coordinator = pid
-        # List of processes that we think are alive.
-        self.alive = {pid : True}
-        # Current state.
-        self.state = 'wait-commit'
-        # Action that the current transaction will perform (currently nothing).
-        self.action = lambda *args, **kwargs: None
-        # Send functionL
-        self.send = send
-
-        with open('%dlog.json' % self.id, 'w+') as log:
-            try:
-                # Internal hash map URL : "Song name".
-                self.log = json.load(log)
-                # Current transaction counter
-                self.state.transaction = len(self.log)-1
-                # Last transaction not completed.
-                if True: # TODO: good logging.
-                    self.state = 'recover'
-                    self.broadcast('help-me')
-            except ValueError: # First start, so empty log.
-                self.log = []
-                self.transaction = 0
-        # Find out who is alive and who is the coordinator.
-        self.broadcast('just-woke')
-        if len(self.alive) == 1: # Only live process
-            self.coordinator = self.id
-            # Tell master this process is now coordinator.
-            self.send(-1, 'coordinator %d' % self.id)
-
-    def receive(self, s):
-        msg = json.loads(s)
-        if msg['message_type'] == 'am_alive':
-            self.coordinator = msg['coordinator']
-            self.transaction = msg['transaction']
-
-        # This process is the coordinator.
-        if self.coordinator == self.id:
-            # Receive a yes vote.
-            if msg['message_type'] == 'vote-yes':
-                self.votes[msg['sender']] = True
-                # All votes (except possibly coordinator) yes!
-                if any(self.votes.values()):
-                    self.broadcast('pre-commit')
-            # Receive a no vote.
-            elif msg['message_type'] == 'vote-no':
-                self.votes[msg['sender']] = False
-                self.state = 'abort'
-                self.broadcast('abort')
-        # All processes (including coordinator) enter this code block.
-        if msg['message_type'] == 'vote-req':
-            self.transaction += 1
-            def action():
-                if msg['action'] == 'add':
-                    self.data[message['song_name']] = message['URL']
-                elif msg['action'] == 'delete':
-                    del self.data[message['song_name']]
-            self.action = action
-            self.send(self.coordinator, self.message('vote-yes'))
-            self.state = 'voted-yes'
-        elif msg['message_type'] == 'precommit':
-            self.send(self.coordinator, self.message('ack'))
-        elif msg['message_type'] == 'commit':
-            self.action()
-            self.state = 'committed'
-
-
+    # Called when self receives a message s from the master.
     def receive_master(self, s):
         parts = s.split()
+        pid = int(parts[0])
         # Begin three-phase commit.
-        if parts[1] == 'add':
+        if parts[1] == 'add' and self.coordinator == pid:
+            self.action = 'add':
+            self.song = parts[2]
+            self.state = 'vote-req'
             # Start a new transaction.
             self.transaction += 1
+            self.URL = parts[3]
             self.votes = {}
-            broadcast('vote-req', action='add', song_name=parts[2], URL=parts[3])
-        elif parts[1] == 'delete':
+            self.broadcast()
+        if parts[1] == 'delete' and self.coordinator == pid:
+            self.action = 'delete'
+            self.song = parts[2]
+            self.state = 'vote-req'
             self.transaction += 1
             self.votes = {}
-            broadcast('vote-req', action='delete', song_name=parts[2], URL=parts[3])
+            self.broadcast()
+        if parts[1] == 'get':
+            if parts[2] in self.data:
+                # Send song URL to master.
+                self.send(-1, self.data[parts[2]])
+
+    # Called when self receives message s from another backend server.
+    def receive(self, s):
+        m = Message(json.loads(s))
+        if m.state == 'abort':
+            self.state = 'abort'
+        if m.state == 'ack':
+            self.acks[m.id] = True
+            # All live processes have acked.
+            if len(self.acks) == len(self.alive):
+                self.state = 'commit'
+                self.broadcast()
+                self.send(-1, 'ack commit')
+        if m.state == 'commit':
+            if m.action == 'add':
+                self.data[m.song] = m.URL
+            elif m.action == 'delete':
+                del self.data[m.song]
+        if m.state == 'just-woke':
+            self.send(m.id, self.message())
+        if self.state == 'just-woke':
+            self.coordinator = msg.coordinator
+            self.transaction = msg.transaction
+        if m.state == 'pre-commit':
+            self.state = 'ack'
+            self.send(self.coordinator, self.message())
+        if m.state == 'ur-elected':
+            # TODO: termination protocol
+            pass
+        if m.state == 'vote-req':
+            self.action = m.action
+            # Increment transaction number if not coordinator.
+            if self.id != self.coordinator:
+                self.transaction += 1
+            self.song = m.song
+            self.state = 'vote-yes'
+            self.URL = m.URL
+            self.send(self.coordinator, self.message())
+        # Only accept no votes if you're the coordinator.
+        if m.state == 'vote-no' and self.id = self.coordinator:
+            self.state = 'abort'
+            self.votes[m.id] = False
+            self.broadcast()
+            # Tell master you've aborted.
+            self.send(-1, 'ack abort')
+        # Only accept yes votes if you're the coordinator
+        if m.state == 'vote-yes' and self.id = self.coordinator:
+            self.votes[m.id] = True
+            # Everybody vote yes!
+            if any(self.votes.values()):
+                self.acks = {}
+                self.state = 'pre-commit'
+                self.broadcast()
