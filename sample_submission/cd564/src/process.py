@@ -115,12 +115,16 @@ def send(p_id, data):
   global root_port
   if p_id == -1:
     outgoing_conns[p_id].send(str(data) + '\n')
-    return
+    return true
 
-  sock = socket(AF_INET, SOCK_STREAM)
-  sock.connect((address, root_port + p_id))
-  sock.send(str(data) + '\n')
-  sock.close()
+  try:
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.connect((address, root_port + p_id))
+    sock.send(str(data) + '\n')
+    sock.close()
+  except:
+    return false
+  return true
 
 def main():
   global address, root_port, processes, outgoing_conns
@@ -151,28 +155,28 @@ def main():
     a = 1
 
   # append process information to file for all processes info
-  f = open('backend_servers', 'a')
-  f.write(str(pid) + "\n")
-  f.close()
-
-  # get information of all other processes
-  curr_processes = 0
-  while curr_processes != num_processes:
-    curr_processes = 0
-    f = open('backend_servers', 'r')
-    for line in f:
-      #line = line.split()
-      print line
-      curr_processes += 1
-    f.close()
-
-  while (True):
-    try:
-      in_data = processes[pid].recv(1024)
-      print in_data
-    except:
-      print "ErrorAsh" + sys.exc_info()
-      break
+##  f = open('backend_servers', 'a')
+##  f.write(str(pid) + "\n")
+##  f.close()
+##
+##  # get information of all other processes
+##  curr_processes = 0
+##  while curr_processes != num_processes:
+##    curr_processes = 0
+##    f = open('backend_servers', 'r')
+##    for line in f:
+##      #line = line.split()
+##      print line
+##      curr_processes += 1
+##    f.close()
+##
+##  while (True):
+##    try:
+##      in_data = processes[pid].recv(1024)
+##      print in_data
+##    except:
+##      print "ErrorAsh" + sys.exc_info()
+##      break
 
 if __name__ == '__main__':
   main()
