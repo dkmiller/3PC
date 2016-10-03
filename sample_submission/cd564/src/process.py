@@ -25,8 +25,9 @@ class ListenThread(Thread):
     while True:
       try:
         data = self.conn.recv(1024)
-        print "Receiving internal msg: " + str(data)
+        ##print "Receiving internal msg: " + str(data)
         data = data.split('\n')
+        data = data[:-1]
         for line in data:
           client.receive(line)
 
@@ -79,8 +80,9 @@ class MasterHandler(Thread):
     while self.valid:
       try:
         data = self.conn.recv(1024)
-        print "Receiving master msg: " + str(data)
+        ##print "Receiving master msg: " + str(data)
         data = data.split('\n')
+        data = data[:-1]
         for line in data:
           client.receive_master(line)
         #sys.stderr.write(data)
