@@ -140,6 +140,26 @@ def send(p_id, data):
     return False
   return True
 
+def send_many(p_id_list, data):
+  global root_port, outgoing_conns, address
+  true_list = []
+  for p_id in p_id_list:
+    if p_id == -1:
+      outgoing_conns[p_id].send(str(data) + '\n')
+      true_list.append(p_id)
+      continue
+
+    try:
+      sock = socket(AF_INET, SOCK_STREAM)
+      sock.connect((address, root_port + p_id))
+      print "Sending internal msg: " + str(data)
+      sock.send(str(data) + '\n')
+      sock.close()
+    except:
+      continue
+    true_list.append(p_id)
+  return true_list
+
 def main():
   global address, client, root_port, processes, outgoing_conns
 
@@ -164,7 +184,7 @@ def main():
 ##    outgoing_conns[pno] = handler
 ##    handler.start()
 
-  client = Client(pid, num_processes, send)
+  client = Client(pid, num_processes, send_many)
   mhandler.start()
 
   print "yo"

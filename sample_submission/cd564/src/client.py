@@ -158,6 +158,7 @@ class Client:
                 # Self crashed during a transaction.
                 else:
                     # TODO: recovery code here.
+                    pass
             if m.message == 'ur-elected':
                 # TODO: termination protocol
                 pass
