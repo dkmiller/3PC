@@ -25,10 +25,11 @@ class ListenThread(Thread):
     while True:
       try:
         data = self.conn.recv(1024)
-        ##print "Receiving internal msg: " + str(data)
+        print "Receiving internal msg: " + str(data)
         data = data.split('\n')
         data = data[:-1]
         for line in data:
+          print "process - Inside loop - " + str(line)
           client.receive(line)
 
       except:
@@ -80,31 +81,11 @@ class MasterHandler(Thread):
     while self.valid:
       try:
         data = self.conn.recv(1024)
-        ##print "Receiving master msg: " + str(data)
+        print "Receiving master msg: " + str(data)
         data = data.split('\n')
         data = data[:-1]
         for line in data:
           client.receive_master(line)
-        #sys.stderr.write(data)
-#         line = data.split('\n')
-#         for l in line:
-#             s = l.split()
-#             if len(s) < 2:
-#                 continue
-#             if s[0] == 'coordinator':
-#                 leader_lock.acquire()
-#                 leader = int(s[1])
-#                 leader_lock.release()
-#             elif s[0] == 'resp':
-#                 sys.stdout.write(s[1] + '\n')
-#                 sys.stdout.flush()
-#                 wait_ack_lock.acquire()
-#                 wait_ack = False
-#                 wait_ack_lock.release()
-#             elif s[0] == 'ack':
-#                 wait_ack_lock.acquire()
-#                 wait_ack = False
-#                 wait_ack_lock.release()
       except:
         print sys.exc_info()
         self.valid = False
@@ -124,6 +105,7 @@ class MasterHandler(Thread):
     except:
       pass
 
+# deprecated
 def send(p_id, data):
   global root_port, outgoing_conns, address
   if p_id == -1:
@@ -187,7 +169,7 @@ def main():
   client = Client(pid, num_processes, send_many)
   mhandler.start()
 
-  print "yo"
+  print "Client has been inited"
 
   while True:
     a = 1

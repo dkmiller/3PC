@@ -99,6 +99,7 @@ class Client:
                 self.votes = {}
                 # Update live list for this transaction.
                 self.alive = self.broadcast()
+                print "Alive list after broadcast - " + str(self.alive)
                 if self.flag:
                     # TODO: this changes if there is a flag.
                     pass
@@ -115,12 +116,16 @@ class Client:
             if parts[0] == 'get' and parts[1] in self.data:
                 # Send song URL to master.
                 self.send(-1, self.data[parts[1]])
+        print "receive_master_done"
+
 
     # Called when self receives message from another backend server.
     # IS thread-safe.
     def receive(self, s):
+        print "client: received internal something"
         with self.lock:
             m = Message(json.loads(s))
+            print "Inside receive - " + str(m)
             # Only pay attention to abort if in middle of transaction.
             if m.message == 'abort' and self.transaction['state'] not in ['aborted', 'committed']:
                 self.transaction['state'] = 'abort'
@@ -164,6 +169,7 @@ class Client:
                 pass
             # Assume we only receive this correctly.
             if m.message == 'vote-req':
+                print "Client received vote-req"
                 self.transaction = m.transaction
                 self.message = 'vote-no' if self.flag == 'vote-no' else 'vote-yes'
                 self.send([m.id], self.message_str())
@@ -187,7 +193,7 @@ class Client:
                     self.broadcast()
             # Whatever happened above, log it.
             self.log()
-
+        print "client: exited receive something"
 
     # Wrapper class for the receipt of a json'd client.
     class Message(object):
