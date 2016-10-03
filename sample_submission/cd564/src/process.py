@@ -143,9 +143,8 @@ def main():
   myport = int(sys.argv[3])
 
   # Connection with MASTER
-  handler = MasterHandler(pid, address, myport)
-  outgoing_conns[-1] = handler
-  handler.start()
+  mhandler = MasterHandler(pid, address, myport)
+  outgoing_conns[-1] = mhandler
 
   # All incoming connections
   handler = WorkerThread(address, root_port+pid, pid)
@@ -160,6 +159,7 @@ def main():
 ##    handler.start()
 
   client = Client(pid, num_processes, send)
+  mhandler.start()
 
   while True:
     a = 1
