@@ -91,15 +91,16 @@ class Client:
                     self.votes = {}
                     # Update live list for this transaction.
                     self.alive = self.broadcast()
+                    self.log()
                 else:
                     self.send([-1], 'ack abort')
             elif parts[0] == 'crash':
                 sys.exit(1)
-            elif parts[0] in ['crashAfterAck',
-                            'crashAfterVote',
-                            'crashPartialCommit',
-                            'crashPartialPreCommit',
-                            'crashVoteREQ']:
+            elif parts[0] in ['crashAfterAck', 'crashAfterVote']:
+                self.flag = parts[0]
+            elif parts[0] in ['crashPartialCommit',
+                              'crashPartialPreCommit',
+                              'crashVoteREQ']:
                 self.flag = parts[0]
             # If we have the song
             elif parts[0] == 'get' and parts[1] in self.data:
@@ -107,7 +108,6 @@ class Client:
                 url = self.data[parts[1]]
                 self.send([-1], 'resp ' + url)
             elif parts[0] == 'vote' and parts[1] == 'NO':
-                print 'told to vote NO'
                 self.flag = 'vote NO'
         print 'end receive_master'
 
@@ -120,6 +120,7 @@ class Client:
             # Only pay attention to abort if in middle of transaction.
             if m['message'] == 'abort' and self.transaction['state'] not in ['aborted', 'committed']:
                 self.transaction['state'] = 'abort'
+                self.log()
             # Only pay attention to acks if you are the coordinator.
             if m['message'] == 'ack' and self.id == self.coordinator and self.transaction['state'] == 'precommitted':
                 self.acks[m['id']] = True
@@ -131,6 +132,7 @@ class Client:
                         self.data[m['transaction']['song']] = m['transaction']['URL']
                     else:
                         del self.data[m['transaction']['song']]
+                    self.log()
                     self.broadcast()
                     self.send([-1], 'ack commit')
             # Even the coordinator only updates data on receipt of commit.
@@ -140,6 +142,7 @@ class Client:
                     self.data[m['transaction']['song']] = m['transaction']['URL']
                 else:
                     del self.data[m['transaction']['song']]
+                self.log()
             if m['message'] == 'precommit':
                 self.message = 'ack'
                 self.transaction['state'] = 'precommitted'
@@ -172,7 +175,10 @@ class Client:
                     self.flag = None
                 else:
                     self.message = 'vote-yes'
+                self.log()
                 self.send([m['id']], self.message_str())
+                if self.flag == 'crashAfterVote' and self.id != self.coordinator:
+                    sys.exit(1)
                 # TODO: timeout actions.
             # Only accept no votes if you're the coordinator.
             if m['message'] == 'vote-no' and self.id == self.coordinator:
@@ -180,6 +186,7 @@ class Client:
                 self.message = 'abort'
                 self.transaction['state'] = 'aborted'
                 self.votes[m['id']] = False
+                self.log()
                 self.broadcast()
                 # Tell master you've aborted.
                 self.send([-1], 'ack abort')
@@ -192,7 +199,5 @@ class Client:
                     self.message = 'precommit'
                     self.transaction['state'] = 'precommitted'
                     self.broadcast()
-            # Whatever happened above, log it.
-            self.log()
         print "end receive"
 
