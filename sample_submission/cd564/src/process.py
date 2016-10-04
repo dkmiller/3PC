@@ -12,6 +12,7 @@ processes = dict()
 threads = dict()
 conns = dict()
 outgoing_conns = dict()
+my_pid = -2
 
 class ListenThread(Thread):
   def __init__(self, conn, addr):
@@ -25,12 +26,13 @@ class ListenThread(Thread):
     while True:
       try:
         data = self.conn.recv(1024)
-        print "Receiving internal msg: " + str(data)
-        data = data.split('\n')
-        data = data[:-1]
-        for line in data:
-          print "process - Inside loop - " + str(line)
-          client.receive(line)
+        if data != "":
+          print "Receiving internal msg: " + str(data)
+          data = data.split('\n')
+          data = data[:-1]
+          for line in data:
+            #print "process - Inside loop - " + str(line)
+            client.receive(line)
 
       except:
         break
@@ -81,11 +83,12 @@ class MasterHandler(Thread):
     while self.valid:
       try:
         data = self.conn.recv(1024)
-        print "Receiving master msg: " + str(data)
-        data = data.split('\n')
-        data = data[:-1]
-        for line in data:
-          client.receive_master(line)
+        if data != "":
+          print "Receiving master msg: " + str(data)
+          data = data.split('\n')
+          data = data[:-1]
+          for line in data:
+            client.receive_master(line)
       except:
         print sys.exc_info()
         self.valid = False
@@ -107,6 +110,7 @@ class MasterHandler(Thread):
 
 # deprecated
 def send(p_id, data):
+
   global root_port, outgoing_conns, address
   if p_id == -1:
     outgoing_conns[p_id].send(str(data) + '\n')
@@ -123,13 +127,18 @@ def send(p_id, data):
   return True
 
 def send_many(p_id_list, data):
-  global root_port, outgoing_conns, address
+  print 'send_many being called by ' + str(p_id_list)
+  global root_port, outgoing_conns, address, my_pid
   true_list = []
   for p_id in p_id_list:
     if p_id == -1:
       outgoing_conns[p_id].send(str(data) + '\n')
       true_list.append(p_id)
       continue
+    #if p_id == my_pid:
+    #  true_list.append(p_id)
+    #  client.receive(data)
+    #  continue
 
     try:
       sock = socket(AF_INET, SOCK_STREAM)
@@ -147,6 +156,7 @@ def main():
 
   print sys.argv
   pid = int(sys.argv[1])
+  my_pid = pid
   num_processes = int(sys.argv[2])
   myport = int(sys.argv[3])
 
