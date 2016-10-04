@@ -66,14 +66,12 @@ class Client:
     # NOT thread safe.
     def message_str(self):
         # Generic method for converting class to string
-        print 'begin message_str'
         def jdefault(o):
             if hasattr(o, '__dict__'):
                 return o.__dict__
             else:
                 return None
         result = json.dumps(self, default = jdefault)
-        print 'end message_str'
         return result
 
     # Called when self receives a message s from the master.
@@ -81,12 +79,9 @@ class Client:
     def receive_master(self, s):
         with self.lock:
             parts = s.split()
-            print str(self.coordinator) + ' and ' + str(self.id)
             # Begin three-phase commit.
             if parts[0] in ['add', 'delete']:
-                print 'receive_master got ' + parts[0]
                 if self.coordinator == self.id:
-                    print 'receive_master add'
                     self.transaction = {'number' : self.transaction['number']+1,
                                         'song' : parts[1],
                                         'state' : 'uncertain',
@@ -96,7 +91,6 @@ class Client:
                     self.votes = {}
                     # Update live list for this transaction.
                     self.alive = self.broadcast()
-                    print "Alive list after broadcast - " + str(self.alive)
                 else:
                     self.send([-1], 'ack abort')
             elif parts[0] == 'crash':
@@ -112,18 +106,14 @@ class Client:
             elif parts[0] == 'get' and parts[1] in self.data:
                 # Send song URL to master.
                 url = self.data[parts[1]]
-                print 'sending ' + url + ' to master'
                 self.send([-1], 'resp ' + url)
-                print 'finished sending'
-        print "receive_master_done"
+        print 'end receive_master'
 
 
     # Called when self receives message from another backend server.
     # IS thread-safe.
     def receive(self, s):
-        print 'client about to lock'
         with self.lock:
-            print "client: receive inside lock"
             m = json.loads(s)
             # Only pay attention to abort if in middle of transaction.
             if m['message'] == 'abort' and self.transaction['state'] not in ['aborted', 'committed']:
@@ -133,14 +123,12 @@ class Client:
                 self.acks[m['id']] = True
                 # All live processes have acked.
                 if len(self.acks) == len(self.alive):
-                    print 'coordinator: just committed' + str(m['transaction']['song'])
                     self.transaction['state'] = 'committed'
                     self.message = 'commit'
                     if m['transaction']['action'] == 'add':
                         self.data[m['transaction']['song']] = m['transaction']['URL']
                     else:
                         del self.data[m['transaction']['song']]
-                    print 'now state = ' + str(self.data)
                     self.broadcast()
                     self.send([-1], 'ack commit')
             # Even the coordinator only updates data on receipt of commit.
@@ -153,22 +141,16 @@ class Client:
             if m['message'] == 'precommit':
                 self.message = 'ack'
                 self.transaction['state'] = 'precommitted'
-                print 'sending ack'
                 self.send([self.coordinator], self.message_str())
                 # TODO: what if coordinator is dead here?
             if m['message'] == 'state-req':
-                print 'about to send state-resp to %d' % m['id']
                 self.message = 'state-resp'
                 stuff = self.send([m['id']], self.message_str())
-                print 'result = ' + str(stuff)
             if m['message'] == 'state-resp':
-                print 'received a state-resp'
                 # Self tried to learn state, didn't crash during a transaction.
                 if self.transaction['state'] in ['committed', 'aborted']:
-                    print str(m['coordinator'])
                     # Only update internal state if sender knows more than self.
                     if self.transaction['number'] <= m['transaction']['number'] and isinstance(m['coordinator'], (int,long)):
-                        print 'receive state-resp, inside if'
                         self.coordinator = m['coordinator']
                         self.data = m['data']
                         self.transaction = m['transaction']
@@ -181,7 +163,6 @@ class Client:
                 pass
             # Assume we only receive this correctly.
             if m['message'] == 'vote-req':
-                print "Client received vote-req"
                 self.transaction = m['transaction']
                 self.message = 'vote-no' if self.flag == 'vote-no' else 'vote-yes'
                 self.send([m['id']], self.message_str())
@@ -204,15 +185,6 @@ class Client:
                     self.transaction['state'] = 'precommitted'
                     self.broadcast()
             # Whatever happened above, log it.
-            print 'about to log'
             self.log()
-            print 'just logged'
-        print "client: end receive"
+        print "end receive"
 
-# Only used for debugging. TODO: delete before submission.
-def test_send(pids, string):
-    print 'sending %s to %s' % (string, str(pids))
-    alive = []
-    for p in pids:
-        alive.append(p)
-    return alive
