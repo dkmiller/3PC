@@ -37,26 +37,14 @@ class Client:
 
     # Should be called immediately after constructor.
     def load_state(self):
-        # Find out current state (has self crashed, etc).
-        try:
-            log = pickle.load(open('%dlog.p' % self.id, 'rb'))
-            transaction = log.transaction
-            # Previous transaction finished.
-            if transaction['state'] in ['committed', 'aborted']:
-                self.broadcast()
-            else:
-                # TODO: termination protocol.
-                pass
-        # First time this process has started.
-        except:
-            print 'Process %d alive for the first time' % self.id
-            # Find out who is alive and who is the coordinator.
-            self.alive = self.broadcast()
-            # Self is the first process to be started.
-            if len(self.alive) == 1:
-                self.coordinator = self.id
-                # Tell master this process is now coordinator.
-                self.send([-1], 'coordinator %d' % self.id)
+        print 'Process %d alive for the first time' % self.id
+        # Find out who is alive and who is the coordinator.
+        self.alive = self.broadcast()
+        # Self is the first process to be started.
+        if len(self.alive) == 1:
+            self.coordinator = self.id
+            # Tell master this process is now coordinator.
+            self.send([-1], 'coordinator %d' % self.id)
 
     # Broadcasts message corresponding to state and returns all live recipients.
     # The broadcast goes to all messages, including the sender.
@@ -69,14 +57,7 @@ class Client:
     # Writes state to log.
     # NOT thread-safe.
     def log(self):
-        print 'begin log'
-        to_log = copy.copy(self)
-        to_log.lock = None
-        to_log.send = None
-        filename = str(self.id) + "log.p"
-        # Overwrite old log.
-        pickle.dump(to_log, open(filename, "wb"))
-        print 'end log'
+        pass
 
     # Returns a serialized version of self's state. Since in this assignment,
     # an objects state will easily be captured in at most 300B, smaller than
@@ -219,7 +200,7 @@ class Client:
             print 'about to log'
             self.log()
             print 'just logged'
-        print "client: exited receive something"
+        print "client: end receive"
 
 # Only used for debugging. TODO: delete before submission.
 def test_send(pids, string):
