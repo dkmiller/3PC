@@ -83,24 +83,25 @@ class Client:
             parts = s.split()
             print str(self.coordinator) + ' and ' + str(self.id)
             # Begin three-phase commit.
-            if parts[0] in ['add', 'delete'] and self.coordinator == self.id:
-                print 'receive_master add'
-                self.transaction = {'number' : self.transaction['number']+1,
-                                    'song' : parts[1],
-                                    'state' : 'uncertain',
-                                    'action' : parts[0],
-                                    'URL' : parts[2] if parts[0] == 'add' else None}
-                self.message = 'vote-req'
-                self.votes = {}
-                # Update live list for this transaction.
-                self.alive = self.broadcast()
-                print "Alive list after broadcast - " + str(self.alive)
-                if self.flag:
-                    # TODO: this changes if there is a flag.
-                    pass
-            if parts[0] == 'crash':
+            if parts[0] in ['add', 'delete']:
+                print 'receive_master got ' + parts[0]
+                if self.coordinator == self.id:
+                    print 'receive_master add'
+                    self.transaction = {'number' : self.transaction['number']+1,
+                                        'song' : parts[1],
+                                        'state' : 'uncertain',
+                                        'action' : parts[0],
+                                        'URL' : parts[2] if parts[0] == 'add' else None}
+                    self.message = 'vote-req'
+                    self.votes = {}
+                    # Update live list for this transaction.
+                    self.alive = self.broadcast()
+                    print "Alive list after broadcast - " + str(self.alive)
+                else:
+                    self.send([-1], 'ack abort')
+            elif parts[0] == 'crash':
                 sys.exit(1)
-            if parts[0] in ['crashAfterAck',
+            elif parts[0] in ['crashAfterAck',
                             'crashAfterVote',
                             'crashPartialCommit',
                             'crashPartialPreCommit',
@@ -108,7 +109,7 @@ class Client:
                             'vote NO']:
                 self.flag = parts[0]
             # If we have the song
-            if parts[0] == 'get' and parts[1] in self.data:
+            elif parts[0] == 'get' and parts[1] in self.data:
                 # Send song URL to master.
                 url = self.data[parts[1]]
                 print 'sending ' + url + ' to master'
