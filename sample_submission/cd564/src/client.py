@@ -5,7 +5,7 @@ import sys
 import threading
 
 class Client:
-    def __init__(self, pid, num_procs, send):
+    def __init__(self, pid, num_procs, send, c_t_vote_req, c_t_prec, c_t_c, p_t_vote, p_t_acks):
         # Array of processes that we think are alive.
         self.alive = [pid]
         # Unknown coordinator.
@@ -34,6 +34,12 @@ class Client:
                             'state' : 'committed',
                             'action': None,
                             'URL' : None}
+        # Timeouts
+        self.c_t_vote_req = c_t_vote_req
+        self.c_t_prec = c_t_prec
+        self.c_t_c = c_t_c
+        self.p_t_vote = p_t_vote
+        self.p_t_acks = p_t_acks
 
     # Should be called immediately after constructor.
     def load_state(self):
@@ -111,7 +117,6 @@ class Client:
                 self.flag = 'vote NO'
         print 'end receive_master'
 
-
     # Called when self receives message from another backend server.
     # IS thread-safe.
     def receive(self, s):
@@ -168,6 +173,9 @@ class Client:
                 pass
             # Assume we only receive this correctly.
             if m['message'] == 'vote-req':
+                # Restart timeout counter
+                self.c_t_vote_req.restart()
+
                 self.transaction = m['transaction']
                 if self.flag == 'vote NO':
                     self.message = 'vote-no'
