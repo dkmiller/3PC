@@ -99,14 +99,16 @@ class Client:
                             'crashAfterVote',
                             'crashPartialCommit',
                             'crashPartialPreCommit',
-                            'crashVoteREQ',
-                            'vote NO']:
+                            'crashVoteREQ']:
                 self.flag = parts[0]
             # If we have the song
             elif parts[0] == 'get' and parts[1] in self.data:
                 # Send song URL to master.
                 url = self.data[parts[1]]
                 self.send([-1], 'resp ' + url)
+            elif parts[0] == 'vote' and parts[1] == 'NO':
+                print 'told to vote NO'
+                self.flag = 'vote NO'
         print 'end receive_master'
 
 
@@ -164,22 +166,28 @@ class Client:
             # Assume we only receive this correctly.
             if m['message'] == 'vote-req':
                 self.transaction = m['transaction']
-                self.message = 'vote-no' if self.flag == 'vote-no' else 'vote-yes'
+                if self.flag == 'vote NO':
+                    self.message = 'vote-no'
+                    # Clear your flag for the next transaction.
+                    self.flag = None
+                else:
+                    self.message = 'vote-yes'
                 self.send([m['id']], self.message_str())
                 # TODO: timeout actions.
             # Only accept no votes if you're the coordinator.
             if m['message'] == 'vote-no' and self.id == self.coordinator:
+                print 'received no vote'
                 self.message = 'abort'
                 self.transaction['state'] = 'aborted'
                 self.votes[m['id']] = False
                 self.broadcast()
                 # Tell master you've aborted.
-                self.send(-1, 'ack abort')
+                self.send([-1], 'ack abort')
             # Only accept yes votes if you're the coordinator
             if m['message'] == 'vote-yes' and self.id == self.coordinator:
                 self.votes[m['id']] = True
                 # Everybody has voted yes!
-                if any(self.votes.values()):
+                if all(self.votes.values()):
                     self.acks = {}
                     self.message = 'precommit'
                     self.transaction['state'] = 'precommitted'
