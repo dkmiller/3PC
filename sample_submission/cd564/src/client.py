@@ -40,6 +40,8 @@ class Client:
         self.c_t_c = c_t_c
         self.p_t_vote = p_t_vote
         self.p_t_acks = p_t_acks
+        # Wait for a vote-req
+        self.c_t_vote_req.restart()
 
     # Should be called immediately after constructor.
     def load_state(self):
@@ -95,9 +97,11 @@ class Client:
                                         'URL' : parts[2] if parts[0] == 'add' else None}
                     self.message = 'vote-req'
                     self.votes = {}
-                    # Update live list for this transaction.
+                    # Alive = set of processes that received the vote request.
                     self.alive = self.broadcast()
                     self.log()
+                    # Wait for votes
+                    self.p_t_vote.restart()
                 else:
                     self.send([-1], 'ack abort')
             elif parts[0] == 'crash':
@@ -126,11 +130,17 @@ class Client:
             if m['message'] == 'abort' and self.transaction['state'] not in ['aborted', 'committed']:
                 self.transaction['state'] = 'abort'
                 self.log()
+                # No longer need to wait for precommit.
+                self.c_t_prec.suspend()
+                # Wait for next vote request.
+                self.c_t_vote_req.restart()
             # Only pay attention to acks if you are the coordinator.
             if m['message'] == 'ack' and self.id == self.coordinator and self.transaction['state'] == 'precommitted':
                 self.acks[m['id']] = True
                 # All live processes have acked.
                 if len(self.acks) == len(self.alive):
+                    # Stop waiting for acks
+                    self.p_t_acks.suspend()
                     self.transaction['state'] = 'committed'
                     self.message = 'commit'
                     if m['transaction']['action'] == 'add':
@@ -138,21 +148,29 @@ class Client:
                     else:
                         del self.data[m['transaction']['song']]
                     self.log()
-                    self.broadcast()
+                    self.send(self.alive, self.message_str())
                     self.send([-1], 'ack commit')
             # Even the coordinator only updates data on receipt of commit.
             # Should only receive this emssage if internal state is precommitted.
             if m['message'] == 'commit' and self.transaction['state'] == 'precommitted':
+                # No longer wait for commit.
+                self.c_t_c.suspend()
                 if m['transaction']['action'] == 'add':
                     self.data[m['transaction']['song']] = m['transaction']['URL']
                 else:
                     del self.data[m['transaction']['song']]
                 self.log()
+                # Wait for next vote request.
+                self.c_t_vote_req.restart()
             if m['message'] == 'precommit':
+                # No longer need to wait for precommit.
+                self.c_t_prec.suspend()
                 self.message = 'ack'
                 self.transaction['state'] = 'precommitted'
+                self.log()
                 self.send([self.coordinator], self.message_str())
-                # TODO: what if coordinator is dead here?
+                # Wait for commit.
+                self.c_t_c.restart()
             if m['message'] == 'state-req':
                 self.message = 'state-resp'
                 stuff = self.send([m['id']], self.message_str())
@@ -174,8 +192,7 @@ class Client:
             # Assume we only receive this correctly.
             if m['message'] == 'vote-req':
                 # Restart timeout counter
-                self.c_t_vote_req.restart()
-
+                self.c_t_vote_req.suspend()
                 self.transaction = m['transaction']
                 if self.flag == 'vote NO':
                     self.message = 'vote-no'
@@ -183,29 +200,33 @@ class Client:
                     self.flag = None
                 else:
                     self.message = 'vote-yes'
+                    # Wait for a precommit
+                    self.c_t_prec.restart()
                 self.log()
                 self.send([m['id']], self.message_str())
                 if self.flag == 'crashAfterVote' and self.id != self.coordinator:
                     sys.exit(1)
-                # TODO: timeout actions.
             # Only accept no votes if you're the coordinator.
             if m['message'] == 'vote-no' and self.id == self.coordinator:
-                print 'received no vote'
+                self.p_t_vote.suspend()
                 self.message = 'abort'
                 self.transaction['state'] = 'aborted'
                 self.votes[m['id']] = False
                 self.log()
-                self.broadcast()
+                # Tell everyone we've aborted.
+                self.send(self.alive, self.message_str())
                 # Tell master you've aborted.
                 self.send([-1], 'ack abort')
             # Only accept yes votes if you're the coordinator
             if m['message'] == 'vote-yes' and self.id == self.coordinator:
                 self.votes[m['id']] = True
                 # Everybody has voted yes!
-                if all(self.votes.values()):
+                if len(self.alive) == len(self.votes) and all(self.votes.values()):
+                    self.p_t_vote.suspend()
                     self.acks = {}
                     self.message = 'precommit'
                     self.transaction['state'] = 'precommitted'
-                    self.broadcast()
+                    self.send(self.alive, self.message_str())
+                    # Start waiting for acks.
+                    self.p_t_acks.restart()
         print "end receive"
-

@@ -30,23 +30,29 @@ class TimeoutThread(Thread):
       if (!self.__suspend__):
         time.sleep(0.5)
         self.timeout -= 0.5
-        
+
         if (self.timeout <= 0):
           if (self.waiting_on == 'coordinator-vote-req'):
+            print 'timed out waiting for vote-req'
             # Run re-election protocol
             self.timeout = timeout_wait
           elif (self.waiting_on == 'coordinator-precommit'):
+            print 'timed out waiting for precommit'
             # Run Termination protocol
             self.timeout = timeout_wait
           elif (self.waiting_on == 'process-vote'):
+            print 'timed out waiting for votes'
             # Send abort to all
             self.__is__running = False
           elif (self.waiting_on == 'process-acks'):
+            print 'timed out waiting for acks'
             # Send Commits to remaining processes
             self.__is__running = False
           elif (self.waiting_on == 'coordinator-commit')
+            print 'timed out waiting for commit'
             # Termination protocol
             self.__is__running = False
+          self.suspend()
 
   def reset(self):
     global timeout_wait
@@ -220,7 +226,7 @@ def main():
   coordinator_timeout_commit.start()
   process_timeout_vote.start()
   process_timeout_acks.start()
-  
+
   # Connection with MASTER
   mhandler = MasterHandler(pid, address, myport)
   outgoing_conns[-1] = mhandler
