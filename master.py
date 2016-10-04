@@ -9,14 +9,12 @@ import time
 from threading import Thread, Lock
 from socket import SOCK_STREAM, socket, AF_INET
 
-leader_lock = Lock()
 leader = -1 # coordinator
 address = 'localhost'
 threads = {}
 live_list = {}
 crash_later = []
 wait_ack = False
-wait_ack_lock = Lock()
 
 class ClientHandler(Thread):
     def __init__(self, index, address, port):
@@ -24,40 +22,41 @@ class ClientHandler(Thread):
         self.index = index
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.connect((address, port))
+        self.buffer = ""
         self.valid = True
 
     def run(self):
         global leader, threads, wait_ack
         while self.valid:
-            try:
-                data = self.sock.recv(1024)
-                #sys.stderr.write(data)
-                print data
-                line = data.split('\n')
-                for l in line:
-                    s = l.split()
-                    if len(s) < 2:
-                        continue
-                    if s[0] == 'coordinator':
-                        leader_lock.acquire()
-                        leader = int(s[1])
-                        leader_lock.release()
-                    elif s[0] == 'resp':
-                        sys.stdout.write(s[1] + '\n')
-                        sys.stdout.flush()
-                        wait_ack_lock.acquire()
-                        wait_ack = False
-                        wait_ack_lock.release()
-                    elif s[0] == 'ack':
-                        wait_ack_lock.acquire()
-                        wait_ack = False
-                        wait_ack_lock.release()
-            except:
-                print sys.exc_info()
-                self.valid = False
-                del threads[self.index]
-                self.sock.close()
-                break
+            if "\n" in self.buffer:
+			    #print self.buffer
+                (l, rest) = self.buffer.split("\n",1)
+                self.buffer = rest
+                s = l.split()
+                if len(s) < 2:
+                    continue
+                if s[0] == 'coordinator':
+                    leader = int(s[1])
+                    wait_ack = False
+                elif s[0] == 'resp':
+                    sys.stdout.write(s[1] + '\n')
+                    sys.stdout.flush()
+                    wait_ack = False
+                elif s[0] == 'ack':
+                    wait_ack = False
+                else:
+                    print s
+            else:
+                try:
+                    data = self.sock.recv(1024)
+                    #sys.stderr.write(data)
+                    self.buffer += data
+                except:
+                    print sys.exc_info()
+                    self.valid = False
+                    del threads[self.index]
+                    self.sock.close()
+                    break
 
     def send(self, s):
         if self.valid:
@@ -70,30 +69,38 @@ class ClientHandler(Thread):
         except:
             pass
 
-def send(index, data):
+def send(index, data, set_wait_ack=False):
     global leader, live_list, threads, wait_ack
-    wait_ack_lock.acquire()
-    wait = True
-    wait_ack_lock.release()
+    wait = wait_ack
     while wait:
-        time.sleep(0.1)
-        wait_ack_lock.acquire()
+        time.sleep(0.01)
         wait = wait_ack
-        wait_ack_lock.release()
     pid = int(index)
-    if pid >= 0 and pid in threads:
+    if pid >= 0:
+        if pid not in threads:
+            print 'Master or testcase error!'
+            return
+        if set_wait_ack:
+            wait_ack = True
         threads[pid].send(data)
         return
     pid = leader
     while pid not in live_list or live_list[pid] == False:
-        time.sleep(0.1)
-        leader_lock.acquire()
+        time.sleep(0.01)
         pid = leader
-        leader_lock.release()
+    if set_wait_ack:
+        wait_ack = True
     threads[pid].send(data)
 
 def exit():
-    global threads
+    global threads, wait_ack
+
+    wait = wait_ack
+    while wait:
+        time.sleep(0.01)
+        wait = wait_ack
+
+    time.sleep(2)
     for k in threads:
         threads[k].close()
     subprocess.Popen(['./stopall'], stdout=open('/dev/null'), stderr=open('/dev/null'))
@@ -122,42 +129,36 @@ def main():
         if cmd == 'start':
             port = int(sp2[3])
             # if no leader is assigned, set the first process as the leader
-            leader_lock.acquire()
             if leader == -1:
                 leader = pid
-            leader_lock.release()
             live_list[pid] = True
             #subprocess.Popen(['./process', str(pid), sp2[2], sp2[3]], stdout=open('/dev/null'), stderr=open('/dev/null'))
             # sleep for a while to allow the process be ready
-            time.sleep(0.5)
+            time.sleep(1)
             # connect to the port of the pid
             handler = ClientHandler(pid, address, port)
             threads[pid] = handler
             handler.start()
-        elif cmd == 'add' or cmd == 'delete' or cmd == 'get':
-            send(pid, sp1[1])
+        elif cmd == 'get':
+            send(pid, sp1[1], set_wait_ack=True)
+        elif cmd == 'add' or cmd == 'delete':
+            send(pid, sp1[1], set_wait_ack=True)
             for c in crash_later:
                 live_list[c] = False
             crash_later = []
-            wait_ack_lock.acquire()
-            wait_ack = True
-            wait_ack_lock.release()
         elif cmd == 'crash':
             send(pid, sp1[1])
             if pid == -1:
-                leader_lock.acquire()
                 pid = leader
-                leader_lock.release()
             live_list[pid] = False
         elif cmd[:5] == 'crash':
             send(pid, sp1[1])
             if pid == -1:
-                leader_lock.acquire()
                 pid = leader
-                leader_lock.release()
             crash_later.append(pid)
         elif cmd == 'vote':
             send(pid, sp1[1])
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()

@@ -79,11 +79,12 @@ class MasterHandler(Thread):
 
   def run(self):
     global client, conns, threads
-    conns[-1] = self.conn
-    while self.valid:
+    #conns[-1] = self.conn
+    while True:
       try:
         data = self.conn.recv(1024)
-        if data != "":
+        print '.'
+        if data:
           print "Receiving master msg: " + str(data)
           data = data.split('\n')
           data = data[:-1]
@@ -91,8 +92,8 @@ class MasterHandler(Thread):
             client.receive_master(line)
       except:
         print sys.exc_info()
-        self.valid = False
-        del threads[self.index]
+        #self.valid = False
+        #del threads[self.index]
         self.sock.close()
         break
 

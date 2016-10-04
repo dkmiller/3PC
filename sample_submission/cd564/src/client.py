@@ -110,7 +110,10 @@ class Client:
             # If we have the song
             if parts[0] == 'get' and parts[1] in self.data:
                 # Send song URL to master.
-                self.send([-1], self.data[parts[1]])
+                url = self.data[parts[1]]
+                print 'sending ' + url + ' to master'
+                self.send([-1], 'resp ' + url)
+                print 'finished sending'
         print "receive_master_done"
 
 
