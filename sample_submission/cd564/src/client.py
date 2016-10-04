@@ -163,9 +163,12 @@ class Client:
             if m['message'] == 'state-resp':
                 print 'received a state-resp'
                 # Self tried to learn state, didn't crash during a transaction.
-                if self.transaction['state'] in ['commited', 'aborted']:
+                if self.transaction['state'] in ['committed', 'aborted']:
+                    print str(m['coordinator'])
                     # Only update internal state if sender knows more than self.
-                    if self.transaction['number'] < m['transaction']['number']:
+                    if self.transaction['number'] <= m['transaction']['number'] and isinstance(m['coordinator'], (int,long)):
+                        print 'receive state-resp, inside if'
+                        self.coordinator = m['coordinator']
                         self.data = m['data']
                         self.transaction = m['transaction']
                 # Self crashed during a transaction.
