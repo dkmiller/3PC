@@ -40,20 +40,22 @@ class TimeoutThread(Thread):
             self.timeout = timeout_wait
           elif self.waiting_on == 'coordinator-precommit':
             print 'timed out waiting for precommit'
+            self.suspend()
             # Run Termination protocol
             self.timeout = timeout_wait
           elif self.waiting_on == 'process-vote':
+            self.suspend()
             print 'timed out waiting for votes'
             # Send abort to all
-            self.__is__running = False
           elif self.waiting_on == 'process-acks':
+            self.suspend()
             print 'timed out waiting for acks'
             # Send Commits to remaining processes
-            self.__is__running = False
+            client.after_timed_out_on_acks()
           elif self.waiting_on == 'coordinator-commit':
+            self.suspend()
             print 'timed out waiting for commit'
             # Termination protocol
-            self.__is__running = False
 
   def reset(self):
     global timeout_wait

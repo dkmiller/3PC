@@ -70,6 +70,12 @@ class Client:
                 if p not in self.election_alive_list:
                     self.alive.remove(p)
 
+    def after_timed_out_on_acks(self):
+        with self.lock:
+            self.message = 'commit'
+            self.send(self.alive, self.message_str())
+            self.log()
+
     # Broadcasts message corresponding to state and returns all live recipients.
     # The broadcast goes to all messages, including the sender.
     # NOT thread-safe.
