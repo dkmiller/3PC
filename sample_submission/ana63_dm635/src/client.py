@@ -151,10 +151,13 @@ class Client:
                 # Flag maps to list of process id's.
                 self.flags[parts[0]] = map(int, parts[1:])
             # If we have the song
-            elif parts[0] == 'get' and parts[1] in self.data:
-                # Send song URL to master.
-                url = self.data[parts[1]]
-                self.send([-1], 'resp ' + url)
+            elif parts[0] == 'get':
+                if parts[1] in self.data:
+                    # Send song URL to master.
+                    url = self.data[parts[1]]
+                    self.send([-1], 'resp ' + url)
+                else:
+                    self.send([-1], 'resp NONE')
             elif parts[0] == 'vote' and parts[1] == 'NO':
                 self.flags['vote NO'] = True
         print 'end receive_master'

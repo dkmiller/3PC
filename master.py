@@ -103,7 +103,7 @@ def exit():
     time.sleep(2)
     for k in threads:
         threads[k].close()
-    subprocess.Popen(['./stopall'], stdout=open('/dev/null'), stderr=open('/dev/null'))
+    #subprocess.Popen(['./stopall'], stdout=open('/dev/null'), stderr=open('/dev/null'))
     time.sleep(0.1)
     os._exit(0)
 
@@ -132,7 +132,7 @@ def main():
             if leader == -1:
                 leader = pid
             live_list[pid] = True
-            subprocess.Popen(['./process', str(pid), sp2[2], sp2[3]], stdout=open('/dev/null'), stderr=open('/dev/null'))
+            #subprocess.Popen(['./process', str(pid), sp2[2], sp2[3]], stdout=open('/dev/null'), stderr=open('/dev/null'))
             # sleep for a while to allow the process be ready
             time.sleep(1)
             # connect to the port of the pid
