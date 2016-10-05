@@ -1,3 +1,4 @@
 #!/bin/bash
 
-killall -9 node
+killall -9 process
+rm *.p # Remove all log files
