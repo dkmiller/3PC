@@ -32,4 +32,5 @@ can never occur, assuming no crashes other than those given by these special
 cases. 
 
 To compile the project, run the script build in this folder in a *nix 
-environment. 
+environment.
+pyinstaller creates the binary in dist/
