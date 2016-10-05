@@ -8,6 +8,8 @@ class Client:
     def __init__(self, pid, num_procs, send, c_t_vote_req, c_t_prec, c_t_c, p_t_vote, p_t_acks):
         # Array of processes that we think are alive.
         self.alive = [pid]
+        # True if a process restarts
+        self.stupid = False
         # Unknown coordinator.
         self.coordinator = None
         # Internal hash table of URL : song_name.
@@ -34,12 +36,16 @@ class Client:
                             'state' : 'committed',
                             'action': None,
                             'URL' : None}
+        self.num_messages_received_for_election = 0
+
         # Timeouts
         self.c_t_vote_req = c_t_vote_req
         self.c_t_prec = c_t_prec
         self.c_t_c = c_t_c
         self.p_t_vote = p_t_vote
         self.p_t_acks = p_t_acks
+        # Alive list for re-election protocol
+        self.election_alive_list = [pid]
         # Wait for a vote-req
         self.c_t_vote_req.restart()
 
@@ -53,6 +59,17 @@ class Client:
             self.coordinator = self.id
             # Tell master this process is now coordinator.
             self.send([-1], 'coordinator %d' % self.id)
+
+    def re_election_protocol(self):
+        with self.lock:
+            self.num_messages_received_for_election = 0
+            self.message = 'lets-elect-coordinator'
+            self.election_alive_list = self.broadcast()
+
+            # If alive item not present in election_alive, remove from alive
+            for p in self.alive:
+                if p not in election_alive_list:
+                    self.alive.remove(p)
 
     # Broadcasts message corresponding to state and returns all live recipients.
     # The broadcast goes to all messages, including the sender.
@@ -229,4 +246,23 @@ class Client:
                     self.send(self.alive, self.message_str())
                     # Start waiting for acks.
                     self.p_t_acks.restart()
+            # Election protocol messages
+            if m['message'] == 'lets-elect-coordinator':
+                if self.stupid:
+                    self.message = 'i-am-stupid-for-election'
+                else:
+                    self.message = 'take-my-alive-list-for-election'
+                self.send([m['id']], self.message_str())
+            # Here we wait 
+            if m['message'] == 'take-my-alive-list-for-election' or m['message'] == 'i-am-stupid-for-election':
+                self.num_messages_received_for_election += 1
+                l1 = self.alive
+                l2 = m['alive']
+                self.alive = [val for val in l1 if val in l2]
+                if len(self.election_alive_list) == self.num_messages_received_for_election:
+                    self.coordinator = min(self.alive)
+                    if self.coordinator == self.id:
+                        # tell master about new coordinator
+                        self.send([-1], 'coordinator ' + self.id)
+                
         print "end receive"

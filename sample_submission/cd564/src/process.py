@@ -35,6 +35,8 @@ class TimeoutThread(Thread):
           if (self.waiting_on == 'coordinator-vote-req'):
             print 'timed out waiting for vote-req'
             # Run re-election protocol
+            self.suspend()
+            client.re_election_protocol()
             self.timeout = timeout_wait
           elif (self.waiting_on == 'coordinator-precommit'):
             print 'timed out waiting for precommit'
@@ -52,7 +54,6 @@ class TimeoutThread(Thread):
             print 'timed out waiting for commit'
             # Termination protocol
             self.__is__running = False
-          self.suspend()
 
   def reset(self):
     global timeout_wait
