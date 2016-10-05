@@ -94,9 +94,9 @@ missing module named operator.eq - imported by operator, collections
 missing module named _collections.deque - imported by _collections, collections
 missing module named _collections.defaultdict - imported by _collections, collections
 missing module named thread.allocate_lock - imported by thread, _strptime
-missing module named socket.AF_INET - imported by socket, ssl, /Users/player/Downloads/lab1_handout/sample_submission/cd564/src/process.py
-missing module named socket.socket - imported by socket, ssl, /Users/player/Downloads/lab1_handout/sample_submission/cd564/src/process.py
-missing module named socket.SOCK_STREAM - imported by socket, ssl, /Users/player/Downloads/lab1_handout/sample_submission/cd564/src/process.py
+missing module named socket.AF_INET - imported by socket, ssl, /Users/player/Downloads/lab1_handout/sample_submission/ana63_dm635/src/process.py
+missing module named socket.socket - imported by socket, ssl, /Users/player/Downloads/lab1_handout/sample_submission/ana63_dm635/src/process.py
+missing module named socket.SOCK_STREAM - imported by socket, ssl, /Users/player/Downloads/lab1_handout/sample_submission/ana63_dm635/src/process.py
 missing module named _ssl.RAND_egd - imported by _ssl, ssl, socket
 missing module named _ssl.SSL_ERROR_EOF - imported by _ssl, socket
 missing module named _ssl.SSL_ERROR_WANT_READ - imported by _ssl, socket
@@ -167,8 +167,6 @@ missing module named nt._getfullpathname - imported by nt, ntpath
 missing module named nt._exit - imported by nt, os
 missing module named nt - imported by os, ntpath
 missing module named posix._exit - imported by posix, os
-missing module named client.Client - imported by client, /Users/player/Downloads/lab1_handout/sample_submission/cd564/src/process.py
-invalid module named client - imported by /Users/player/Downloads/lab1_handout/sample_submission/cd564/src/process.py
 missing module named _json.make_encoder - imported by _json, json.encoder
 missing module named _json.encode_basestring_ascii - imported by _json, json.encoder
 missing module named _json.scanstring - imported by _json, json.decoder
