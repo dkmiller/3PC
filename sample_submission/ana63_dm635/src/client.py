@@ -1,7 +1,6 @@
 import copy
 import json
 import os
-import pickle
 import threading
 
 class Client:
@@ -20,6 +19,7 @@ class Client:
         self.id = pid
         # Single global lock.
         self.lock = threading.Lock()
+        self.logfile = '%dlog.p' % pid
         # Message to send. Possible values are:
         # abort, ack, commit, just-woke, state-resp, state-req, ur-elected,
         # vote-no, vote-req, vote-yes
@@ -46,6 +46,16 @@ class Client:
         self.election_alive_list = [pid]
         # Wait for a vote-req
         self.c_t_vote_req.restart()
+
+    # Returns internal state as a dictionary.
+    def simple_dict(self):
+        return {'alive' : self.alive,
+                   'coordinator' : self.coordinator,
+                   'data' : self.data,
+                   'flags' : self.flags,
+                   'id' : self.id,
+                   'message' : self.message,
+                   'transaction' : self.transaction}
 
     # Should be called immediately after constructor.
     def load_state(self):
@@ -95,13 +105,7 @@ class Client:
     # possibly unnecessary information in every message.
     # NOT thread safe.
     def message_str(self):
-        to_send = {'alive' : self.alive,
-                   'coordinator' : self.coordinator,
-                   'data' : self.data,
-                   'flags' : self.flags,
-                   'id' : self.id,
-                   'message' : self.message,
-                   'transaction' : self.transaction}
+        to_send = self.simple_dict()
         result = json.dumps(to_send)
         return result
 
