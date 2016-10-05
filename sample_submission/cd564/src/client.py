@@ -1,7 +1,7 @@
 import copy
 import json
+import os
 import pickle
-import sys
 import threading
 
 class Client:
@@ -60,13 +60,14 @@ class Client:
 
     def re_election_protocol(self):
         with self.lock:
+            print 'starting re-election'
             self.num_messages_received_for_election = 0
             self.message = 'lets-elect-coordinator'
             self.election_alive_list = self.broadcast()
 
             # If alive item not present in election_alive, remove from alive
             for p in self.alive:
-                if p not in election_alive_list:
+                if p not in self.election_alive_list:
                     self.alive.remove(p)
 
     # Broadcasts message corresponding to state and returns all live recipients.
@@ -120,7 +121,7 @@ class Client:
                         self.send(self.flags['crashVoteREQ'], self.message_str())
                         del self.flags['crashVoteREQ']
                         self.log()
-                        sys.exit(1)
+                        os._exit(1)
                     else:
                         # Alive = set of processes that received the vote request.
                         self.alive = self.broadcast()
@@ -131,7 +132,7 @@ class Client:
                 else:
                     self.send([-1], 'ack abort')
             elif parts[0] == 'crash':
-                sys.exit(1)
+                os._exit(1)
             elif parts[0] in ['crashAfterAck', 'crashAfterVote']:
                 self.flags[parts[0]] = True
             elif parts[0] in ['crashPartialCommit',
@@ -174,7 +175,7 @@ class Client:
                     if 'crashPartialCommit' in self.flags:
                         self.send(self.flags['crashPartialCommit'], self.message_str())
                         del self.flags['crashPartialCommit']
-                        sys.exit(1)
+                        os._exit(1)
                     else:
                         self.send(self.alive, self.message_str())
                     self.send([-1], 'ack commit')
@@ -199,7 +200,7 @@ class Client:
                 self.log()
                 if 'crashAfterAck' in self.flags:
                     del self.flags['crashAfterAck']
-                    sys.exit(1)
+                    os._exit(1)
                 # Wait for commit.
                 self.c_t_c.restart()
             if m['message'] == 'state-req':
@@ -243,7 +244,7 @@ class Client:
                 self.send([m['id']], self.message_str())
                 if 'crashAfterVote' in self.flags and self.id != self.coordinator:
                     del self.flags['crashAfterVote']
-                    sys.exit(1)
+                    os._exit(1)
             # Only accept no votes if you're the coordinator.
             if m['message'] == 'vote-no' and self.id == self.coordinator:
                 self.p_t_vote.suspend()
@@ -267,7 +268,7 @@ class Client:
                         self.send(self.flags['crashPartialPreCommit'], self.message_str())
                         del self.flags['crashPartialPreCommit']
                         self.log()
-                        sys.exit(1)
+                        os._exit(1)
                     else:
                         self.send(self.alive, self.message_str())
                         self.log()
@@ -280,7 +281,7 @@ class Client:
                 else:
                     self.message = 'take-my-alive-list-for-election'
                 self.send([m['id']], self.message_str())
-            # Here we wait 
+            # Here we wait
             if m['message'] == 'take-my-alive-list-for-election' or m['message'] == 'i-am-stupid-for-election':
                 self.num_messages_received_for_election += 1
                 l1 = self.alive
@@ -288,8 +289,10 @@ class Client:
                 self.alive = [val for val in l1 if val in l2]
                 if len(self.election_alive_list) == self.num_messages_received_for_election:
                     self.coordinator = min(self.alive)
+                    print 'pid = %d, coord = %d' % (self.id, self.coordinator)
                     if self.coordinator == self.id:
                         # tell master about new coordinator
+                        print 'decided new coordinator: ' + str(self.id)
                         self.send([-1], 'coordinator ' + self.id)
-                
+
         print "end receive"
