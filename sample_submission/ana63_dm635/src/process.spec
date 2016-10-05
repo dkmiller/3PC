@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['process.py'],
-             pathex=['/Users/player/Downloads/lab1_handout/sample_submission/cd564/src'],
+             pathex=['/Users/player/Downloads/lab1_handout/sample_submission/ana63_dm635/src'],
              binaries=None,
              datas=None,
              hiddenimports=[],
