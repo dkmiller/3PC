@@ -14,10 +14,8 @@ class Client:
         self.coordinator = None
         # Internal hash table of URL : song_name.
         self.data = {}
-        # Flag to crash at a certain moment, or to vote no. A process can have
-        # at most one flag at a time. An additional flag will overwrite this
-        # one.
-        self.flag = None
+        # Flags to crash at a certain moment, or to vote no.
+        self.flags = {}
         # Process id.
         self.id = pid
         # Single global lock.
@@ -90,18 +88,20 @@ class Client:
     # possibly unnecessary information in every message.
     # NOT thread safe.
     def message_str(self):
-        # Generic method for converting class to string
-        def jdefault(o):
-            if hasattr(o, '__dict__'):
-                return o.__dict__
-            else:
-                return None
-        result = json.dumps(self, default = jdefault)
+        to_send = {'alive' : self.alive,
+                   'coordinator' : self.coordinator,
+                   'data' : self.data,
+                   'flags' : self.flags,
+                   'id' : self.id,
+                   'message' : self.message,
+                   'transaction' : self.transaction}
+        result = json.dumps(to_send)
         return result
 
     # Called when self receives a message s from the master.
     # IS thread-safe.
     def receive_master(self, s):
+        print 'received from master: ' + str(s)
         with self.lock:
             parts = s.split()
             # Begin three-phase commit.
@@ -113,34 +113,45 @@ class Client:
                                         'action' : parts[0],
                                         'URL' : parts[2] if parts[0] == 'add' else None}
                     self.message = 'vote-req'
+                    self.acks = {}
                     self.votes = {}
-                    # Alive = set of processes that received the vote request.
-                    self.alive = self.broadcast()
-                    self.log()
-                    # Wait for votes
-                    self.p_t_vote.restart()
+                    if 'crashVoteREQ' in self.flags:
+                        # If this code executes, the coordinator will crash.
+                        self.send(self.flags['crashVoteREQ'], self.message_str())
+                        del self.flags['crashVoteREQ']
+                        self.log()
+                        sys.exit(1)
+                    else:
+                        # Alive = set of processes that received the vote request.
+                        self.alive = self.broadcast()
+                        print 'self alive = ' + str(self.alive)
+                        self.log()
+                        # Wait for votes
+                        self.p_t_vote.restart()
                 else:
                     self.send([-1], 'ack abort')
             elif parts[0] == 'crash':
                 sys.exit(1)
             elif parts[0] in ['crashAfterAck', 'crashAfterVote']:
-                self.flag = parts[0]
+                self.flags[parts[0]] = True
             elif parts[0] in ['crashPartialCommit',
                               'crashPartialPreCommit',
                               'crashVoteREQ']:
-                self.flag = parts[0]
+                # Flag maps to list of process id's.
+                self.flags[parts[0]] = map(int, parts[1:])
             # If we have the song
             elif parts[0] == 'get' and parts[1] in self.data:
                 # Send song URL to master.
                 url = self.data[parts[1]]
                 self.send([-1], 'resp ' + url)
             elif parts[0] == 'vote' and parts[1] == 'NO':
-                self.flag = 'vote NO'
+                self.flags['vote NO'] = True
         print 'end receive_master'
 
     # Called when self receives message from another backend server.
     # IS thread-safe.
     def receive(self, s):
+        print 'receive ' + s
         with self.lock:
             m = json.loads(s)
             # Only pay attention to abort if in middle of transaction.
@@ -158,14 +169,14 @@ class Client:
                 if len(self.acks) == len(self.alive):
                     # Stop waiting for acks
                     self.p_t_acks.suspend()
-                    self.transaction['state'] = 'committed'
                     self.message = 'commit'
-                    if m['transaction']['action'] == 'add':
-                        self.data[m['transaction']['song']] = m['transaction']['URL']
-                    else:
-                        del self.data[m['transaction']['song']]
                     self.log()
-                    self.send(self.alive, self.message_str())
+                    if 'crashPartialCommit' in self.flags:
+                        self.send(self.flags['crashPartialCommit'], self.message_str())
+                        del self.flags['crashPartialCommit']
+                        sys.exit(1)
+                    else:
+                        self.send(self.alive, self.message_str())
                     self.send([-1], 'ack commit')
             # Even the coordinator only updates data on receipt of commit.
             # Should only receive this emssage if internal state is precommitted.
@@ -184,8 +195,11 @@ class Client:
                 self.c_t_prec.suspend()
                 self.message = 'ack'
                 self.transaction['state'] = 'precommitted'
-                self.log()
                 self.send([self.coordinator], self.message_str())
+                self.log()
+                if 'crashAfterAck' in self.flags:
+                    del self.flags['crashAfterAck']
+                    sys.exit(1)
                 # Wait for commit.
                 self.c_t_c.restart()
             if m['message'] == 'state-req':
@@ -208,20 +222,27 @@ class Client:
                 pass
             # Assume we only receive this correctly.
             if m['message'] == 'vote-req':
+                print 'received vote-req'
                 # Restart timeout counter
                 self.c_t_vote_req.suspend()
                 self.transaction = m['transaction']
-                if self.flag == 'vote NO':
+                #self.alive = m['alive']
+                if 'vote NO' in self.flags:
                     self.message = 'vote-no'
+                    self.transaction['state'] = 'aborted'
                     # Clear your flag for the next transaction.
-                    self.flag = None
+                    del self.flags['vote NO']
+                    # Wait for next transaction.
+                    self.c_t_vote_req.restart()
                 else:
+                    print 'voting yes'
                     self.message = 'vote-yes'
                     # Wait for a precommit
                     self.c_t_prec.restart()
                 self.log()
                 self.send([m['id']], self.message_str())
-                if self.flag == 'crashAfterVote' and self.id != self.coordinator:
+                if 'crashAfterVote' in self.flags and self.id != self.coordinator:
+                    del self.flags['crashAfterVote']
                     sys.exit(1)
             # Only accept no votes if you're the coordinator.
             if m['message'] == 'vote-no' and self.id == self.coordinator:
@@ -240,10 +261,16 @@ class Client:
                 # Everybody has voted yes!
                 if len(self.alive) == len(self.votes) and all(self.votes.values()):
                     self.p_t_vote.suspend()
-                    self.acks = {}
                     self.message = 'precommit'
                     self.transaction['state'] = 'precommitted'
-                    self.send(self.alive, self.message_str())
+                    if 'crashPartialPreCommit' in self.flags:
+                        self.send(self.flags['crashPartialPreCommit'], self.message_str())
+                        del self.flags['crashPartialPreCommit']
+                        self.log()
+                        sys.exit(1)
+                    else:
+                        self.send(self.alive, self.message_str())
+                        self.log()
                     # Start waiting for acks.
                     self.p_t_acks.restart()
             # Election protocol messages

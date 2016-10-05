@@ -14,7 +14,7 @@ conns = dict()
 outgoing_conns = dict()
 my_pid = -2
 
-timeout_wait = 5
+timeout_wait = 40
 
 class TimeoutThread(Thread):
   def __init__(self, timeout, waiting_on):
@@ -27,7 +27,7 @@ class TimeoutThread(Thread):
   def run(self):
     global timeout_wait
     while(self.__is__running):
-      if (!self.__suspend__):
+      if not self.__suspend__:
         time.sleep(0.5)
         self.timeout -= 0.5
 
@@ -38,19 +38,19 @@ class TimeoutThread(Thread):
             self.suspend()
             client.re_election_protocol()
             self.timeout = timeout_wait
-          elif (self.waiting_on == 'coordinator-precommit'):
+          elif self.waiting_on == 'coordinator-precommit':
             print 'timed out waiting for precommit'
             # Run Termination protocol
             self.timeout = timeout_wait
-          elif (self.waiting_on == 'process-vote'):
+          elif self.waiting_on == 'process-vote':
             print 'timed out waiting for votes'
             # Send abort to all
             self.__is__running = False
-          elif (self.waiting_on == 'process-acks'):
+          elif self.waiting_on == 'process-acks':
             print 'timed out waiting for acks'
             # Send Commits to remaining processes
             self.__is__running = False
-          elif (self.waiting_on == 'coordinator-commit')
+          elif self.waiting_on == 'coordinator-commit':
             print 'timed out waiting for commit'
             # Termination protocol
             self.__is__running = False
@@ -82,7 +82,6 @@ class ListenThread(Thread):
       try:
         data = self.conn.recv(1024)
         if data != "":
-          print "Receiving internal msg: " + str(data)
           data = data.split('\n')
           data = data[:-1]
           for line in data:
@@ -138,9 +137,7 @@ class MasterHandler(Thread):
     while True:
       try:
         data = self.conn.recv(1024)
-        print '.'
         if data:
-          print "Receiving master msg: " + str(data)
           data = data.split('\n')
           data = data[:-1]
           for line in data:
@@ -154,7 +151,6 @@ class MasterHandler(Thread):
 
   def send(self, s):
     if self.valid:
-      print "Sending msg to master: " + str(s)
       self.conn.send(str(s) + '\n')
 
   def close(self):
@@ -175,7 +171,6 @@ def send(p_id, data):
   try:
     sock = socket(AF_INET, SOCK_STREAM)
     sock.connect((address, root_port + p_id))
-    print "Sending internal msg: " + str(data)
     sock.send(str(data) + '\n')
     sock.close()
   except:
@@ -199,7 +194,6 @@ def send_many(p_id_list, data):
     try:
       sock = socket(AF_INET, SOCK_STREAM)
       sock.connect((address, root_port + p_id))
-      print "Sending internal msg: " + str(data)
       sock.send(str(data) + '\n')
       sock.close()
     except:
